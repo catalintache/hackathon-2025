@@ -30,7 +30,32 @@ class AuthController extends BaseController
 
     public function register(Request $request, Response $response): Response
     {
-        // TODO: call corresponding service to perform user registration
+        $data     = (array)$request->getParsedBody();
+        $username = trim($data['username'] ?? '');
+        $password = $data['password'] ?? '';
+        $errors   = [];
+
+        if (strlen($username) < 5) {
+            $errors['username'] = 'Username must be at least 5 characters.';
+        }
+        if (strlen($password) < 8 || !preg_match('/\d/', $password)) {
+            $errors['password'] = 'Password must be at least 8 chars and contain a number.';
+        }
+        if ($this->authService->userExists($username)) {
+            $errors['username'] = 'This username is already taken.';
+        }
+
+        if (!empty($errors)) {
+            return $this->render(
+                $response->withStatus(422),
+                'auth/register.twig',
+                ['errors' => $errors, 'old' => $data]
+            );
+        }
+
+        $this->authService->register($username, $password);
+        $this->logger->info("User registered: {$username}");
+
 
         return $response->withHeader('Location', '/login')->withStatus(302);
     }
@@ -42,14 +67,47 @@ class AuthController extends BaseController
 
     public function login(Request $request, Response $response): Response
     {
-        // TODO: call corresponding service to perform user login, handle login failures
+        $data     = (array)$request->getParsedBody();
+        $username = trim($data['username'] ?? '');
+        $password = $data['password'] ?? '';
+        $errors   = [];
+
+        if ($username === '') {
+            $errors['username'] = 'Username is required.';
+        }
+        if ($password === '') {
+            $errors['password'] = 'Password is required.';
+        }
+
+        $user = null;
+        if (empty($errors)) {
+            $user = $this->authService->login($username, $password);
+            if (! $user) {
+                $errors['credentials'] = 'Username or password is invalid.';
+            }
+        }
+
+        if (!empty($errors)) {
+            return $this->render(
+                $response->withStatus(401),
+                'auth/login.twig',
+                ['errors' => $errors, 'old' => $data]
+            );
+        }
+
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = $user->getId();
+        $this->logger->info("User logged in: {$username}");
+
 
         return $response->withHeader('Location', '/')->withStatus(302);
     }
 
     public function logout(Request $request, Response $response): Response
     {
-        // TODO: handle logout by clearing session data and destroying session
+        session_unset();
+        session_destroy();
+        $this->logger->info('User logged out');
 
         return $response->withHeader('Location', '/login')->withStatus(302);
     }
