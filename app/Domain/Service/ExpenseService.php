@@ -18,8 +18,28 @@ class ExpenseService
 
     public function list(User $user, int $year, int $month, int $pageNumber, int $pageSize): array
     {
-        // TODO: implement this and call from controller to obtain paginated list of expenses
-        return [];
+        $userId = $user->getId();          
+        if ($userId === null) {
+            throw new \RuntimeException("User must have an ID to list expenses");
+        }
+
+        $offset = ($pageNumber - 1) * $pageSize;
+        $criteria = [
+    'user_id'   => $user->getId(),
+    'date_from' => sprintf('%04d-%02d-01', $year, $month),
+    'date_to'   => sprintf('%04d-%02d-%02d', $year, $month, cal_days_in_month(CAL_GREGORIAN, $month, $year)),
+];
+
+        $items      = $this->expenses->findBy($criteria, $offset, $pageSize);
+        $totalCount = $this->expenses->countBy($criteria);
+        $totalPages = (int)ceil($totalCount / $pageSize);
+
+        return [
+            'items'       => $items,
+            'totalCount'  => $totalCount,
+            'totalPages'  => $totalPages,
+            'currentPage' => $pageNumber,
+        ];
     }
 
     public function create(
@@ -32,7 +52,7 @@ class ExpenseService
         // TODO: implement this to create a new expense entity, perform validation, and persist
 
         // TODO: here is a code sample to start with
-        $expense = new Expense(null, $user->id, $date, $category, (int)$amount, $description);
+        $expense = new Expense(null, $user->getId(), $date, $category, (int)$round(amount * 100), $description);
         $this->expenses->save($expense);
     }
 
