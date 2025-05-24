@@ -8,6 +8,8 @@ use App\Domain\Repository\ExpenseRepositoryInterface;
 use App\Domain\Repository\UserRepositoryInterface;
 use App\Infrastructure\Persistence\PdoExpenseRepository;
 use App\Infrastructure\Persistence\PdoUserRepository;
+use App\Domain\Service\MonthlySummaryService;
+use App\Domain\Service\AlertGenerator;
 use DI\ContainerBuilder;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
@@ -18,6 +20,7 @@ use Slim\App;
 use Slim\Factory\AppFactory;
 use Slim\Views\Twig;
 use Slim\Views\TwigMiddleware;
+
 
 use function DI\autowire;
 use function DI\factory;
@@ -59,6 +62,8 @@ class Kernel
             // Map interfaces to concrete implementations
             UserRepositoryInterface::class    => autowire(PdoUserRepository::class),
             ExpenseRepositoryInterface::class => autowire(PdoExpenseRepository::class),
+            MonthlySummaryService::class => autowire(),
+            AlertGenerator::class        => autowire(),
         ]);
         $container = $builder->build();
 
@@ -70,10 +75,13 @@ class Kernel
         (require __DIR__.'/../config/routes.php')($app);
 
         // TODO: Handle session initialization
+        if (session_status () === PHP_SESSION_NONE){
+            session_start;
+        }
 
         // Make current user ID globally available to twig templates
         // TODO: change the following line to set the user ID stored in the session, for when user is logged
-        $loggedInUserId = null;
+        $loggedInUserId = $_SESSION['user_id'] ?? null;
         $twig = $container->get(Twig::class);
         $twig->getEnvironment()->addGlobal('currentUserId', $loggedInUserId);
 
