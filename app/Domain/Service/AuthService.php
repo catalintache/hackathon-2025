@@ -26,13 +26,13 @@ class AuthService
 
         $hash = password_hash($password, PASSWORD_DEFAULT);
 
-        $user = new User(null, $username, $password, new \DateTimeImmutable());
+        $user = new User(null, $username, $hash, new \DateTimeImmutable());
         $this->users->save($user);
 
         return $user;
     }
 
-    public function attempt(string $username, string $password): bool
+    public function attempt(string $username, string $password): ?User
     {
         $user = $this->users->findByUsername($username);
         if (! $user) {

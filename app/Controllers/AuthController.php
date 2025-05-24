@@ -15,16 +15,14 @@ class AuthController extends BaseController
     public function __construct(
         Twig $view,
         private AuthService $authService,
-        private LoggerInterface $logger,
+        private LoggerInterface $logger
     ) {
         parent::__construct($view);
     }
 
     public function showRegister(Request $request, Response $response): Response
     {
-        // TODO: you also have a logger service that you can inject and use anywhere; file is var/app.log
         $this->logger->info('Register page requested');
-
         return $this->render($response, 'auth/register.twig');
     }
 
@@ -35,8 +33,8 @@ class AuthController extends BaseController
         $password = $data['password'] ?? '';
         $errors   = [];
 
-        if (strlen($username) < 5) {
-            $errors['username'] = 'Username must be at least 5 characters.';
+        if (strlen($username) < 4) {
+            $errors['username'] = 'Username must be at least 4 characters.';
         }
         if (strlen($password) < 8 || !preg_match('/\d/', $password)) {
             $errors['password'] = 'Password must be at least 8 chars and contain a number.';
@@ -55,7 +53,6 @@ class AuthController extends BaseController
 
         $this->authService->register($username, $password);
         $this->logger->info("User registered: {$username}");
-
 
         return $response->withHeader('Location', '/login')->withStatus(302);
     }
@@ -81,7 +78,7 @@ class AuthController extends BaseController
 
         $user = null;
         if (empty($errors)) {
-            $user = $this->authService->login($username, $password);
+            $user = $this->authService->attempt($username, $password);
             if (! $user) {
                 $errors['credentials'] = 'Username or password is invalid.';
             }
@@ -97,8 +94,6 @@ class AuthController extends BaseController
 
         session_regenerate_id(true);
         $_SESSION['user_id'] = $user->getId();
-        $this->logger->info("User logged in: {$username}");
-
 
         return $response->withHeader('Location', '/')->withStatus(302);
     }
