@@ -47,6 +47,13 @@ class DashboardController extends BaseController
             $alerts = $this->alertGenerator->generate($user, $year, $month);
         }
 
+    $currentYear = (int) date('Y');
+    $years       = [
+    $currentYear,
+    $currentYear - 1,
+    $currentYear - 2,
+];
+
         return $this->render($response, 'dashboard.twig', [
             'selectedYear'          => $year,
             'selectedMonth'         => $month,
@@ -54,6 +61,7 @@ class DashboardController extends BaseController
             'totalForMonth'         => $totalForMonth,
             'totalsForCategories'   => $totalsForCategories,
             'averagesForCategories' => $averagesForCategories,
+            'years'                 => $years,
         ]);
     }
 }

@@ -31,12 +31,54 @@ class PdoExpenseRepository implements ExpenseRepositoryInterface
     public function save(Expense $expense): void
     {
         // TODO: Implement save() method.
+          // dacă nu are ID, e INSERT
+    if ($expense->getId() === null) {
+        $sql = <<<SQL
+            INSERT INTO expenses
+                (user_id, date, category, amount_cents, description)
+            VALUES
+                (:u, :d, :c, :a, :desc)
+        SQL;
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'u'    => $expense->getUserId(),
+            'd'    => $expense->getDate()->format('Y-m-d H:i:s'),
+            'c'    => $expense->getCategory(),
+            'a'    => $expense->getAmountCents(),
+            'desc' => $expense->getDescription(),
+        ]);
+        // preluăm ID-ul generat şi îl setăm în obiect
+        $reflection = new \ReflectionClass($expense);
+        $prop       = $reflection->getProperty('id');
+        $prop->setAccessible(true);
+        $prop->setValue($expense, (int)$this->pdo->lastInsertId());
+    } else {
+        // UPDATE
+        $sql = <<<SQL
+            UPDATE expenses SET
+                user_id      = :u,
+                date         = :d,
+                category     = :c,
+                amount_cents = :a,
+                description  = :desc
+            WHERE id = :id
+        SQL;
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'u'    => $expense->getUserId(),
+            'd'    => $expense->getDate()->format('Y-m-d H:i:s'),
+            'c'    => $expense->getCategory(),
+            'a'    => $expense->getAmountCents(),
+            'desc' => $expense->getDescription(),
+            'id'   => $expense->getId(),
+        ]);
+    }
     }
 
     public function delete(int $id): void
     {
-        $stmt = $this->pdo->prepare('DELETE FROM expenses WHERE id=?');
-        $stmt ->execute(['id' => $id]);
+        $stmt = $this->pdo->prepare('DELETE FROM expenses WHERE id = ?');
+    $stmt->execute([$id]);
     }
 
     public function findBy(array $criteria, int $from, int $limit): array
@@ -58,8 +100,10 @@ class PdoExpenseRepository implements ExpenseRepositoryInterface
     $stmt->bindValue('o', $from,   PDO::PARAM_INT); 
     $stmt->execute();
 
-    $rows = $stmt->fetchAll();
-    return array_map(fn($r) => $this->createExpenseFromData($r), $rows);
+    return array_map(
+        fn(array $r) => $this->createExpenseFromData($r),
+        $stmt->fetchAll(PDO::FETCH_ASSOC)
+    );
     }
 
 
@@ -92,8 +136,8 @@ class PdoExpenseRepository implements ExpenseRepositoryInterface
       ORDER BY year DESC
     ";
     $stmt = $this->pdo->prepare($sql);
-    $stmt->execute(['u' => $user->id]);
-    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    $stmt->execute(['u' => $user->getId()]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN, 0));
     }
 
     public function sumAmountsByCategory(array $criteria): array
@@ -176,5 +220,26 @@ class PdoExpenseRepository implements ExpenseRepositoryInterface
             (int)$data['amount_cents'],
             $data['description'],
         );
+    }
+    public function existsExact(int $userId, string $date, string $description, int $amountCents, string $category): bool
+    {
+        $sql = <<<SQL
+SELECT 1 FROM expenses
+ WHERE user_id = :u
+   AND date = :d
+   AND description = :desc
+   AND amount_cents = :a
+   AND category = :c
+LIMIT 1
+SQL;
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'u'    => $userId,
+            'd'    => $date,
+            'desc' => $description,
+            'a'    => $amountCents,
+            'c'    => $category,
+        ]);
+        return (bool)$stmt->fetchColumn();
     }
 }

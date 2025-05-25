@@ -62,6 +62,7 @@ class Kernel
             // Map interfaces to concrete implementations
             UserRepositoryInterface::class    => autowire(PdoUserRepository::class),
             ExpenseRepositoryInterface::class => autowire(PdoExpenseRepository::class),
+            UserRepositoryInterface::class => autowire(PdoUserRepository::class),
             MonthlySummaryService::class => autowire(),
             AlertGenerator::class        => autowire(),
         ]);
