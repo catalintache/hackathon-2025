@@ -19,18 +19,33 @@ class AuthService
         // TODO: make sure password is not stored in plain, and proper PHP functions are used for that
 
         // TODO: here is a sample code to start with
-        $user = new User(null, $username, $password, new \DateTimeImmutable());
+
+        if ($this->userExists($username)) {
+            throw new \RuntimeException("Username '{$username}' already taken");
+        }
+
+        $hash = password_hash($password, PASSWORD_DEFAULT);
+
+        $user = new User(null, $username, $hash, new \DateTimeImmutable());
         $this->users->save($user);
 
         return $user;
     }
 
-    public function attempt(string $username, string $password): bool
+    public function attempt(string $username, string $password): ?User
     {
-        // TODO: implement this for authenticating the user
-        // TODO: make sur ethe user exists and the password matches
-        // TODO: don't forget to store in session user data needed afterwards
+        $user = $this->users->findByUsername($username);
+        if (! $user) {
+            return null;
+        }
+        if (password_verify($password, $user->getPasswordHash())) {
+            return $user;
+        }
+        return null;
+    }
 
-        return true;
+    public function userExists(string $username): bool
+    {
+        return (bool) $this->users->findByUsername($username);
     }
 }
